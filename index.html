@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#064e3b">
+<title>Smart Waste AI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<style>
+:root {
+  --green:#087f5b;
+  --dark:#064e3b;
+  --light:#f0fdf4;
+  --text:#173c30;
+  --muted:#71877d;
+  --border:#dcebe2;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:Arial,sans-serif;
+  background:var(--light);color:var(--text);
+}
+header{
+  background:linear-gradient(120deg,#064e3b,#087f5b);
+  color:white;padding:25px 6%;
+  display:flex;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;gap:15px;
+}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{font-size:34px}
+.brand h1{font-size:21px;margin:0}
+.brand p{margin:5px 0 0;color:#bbf7d0;font-size:12px}
+.status{
+  background:#ffffff24;border:1px solid #ffffff40;
+  border-radius:30px;padding:10px 16px;font-size:13px;
+}
+main{max-width:1150px;padding:30px 18px;margin:auto}
+.welcome{margin-bottom:25px}
+.welcome h2{font-size:27px;margin:0 0 8px}
+.welcome p{color:var(--muted);line-height:1.6}
+.grid{
+  display:grid;grid-template-columns:1.35fr 1fr;gap:22px;
+}
+.card{
+  background:white;border:1px solid var(--border);
+  border-radius:18px;padding:22px;
+  box-shadow:0 5px 20px #064e3b0d;min-width:0;
+}
+.card h3{margin:0 0 18px;font-size:17px}
+.camera-box{
+  width:100%;aspect-ratio:4/3;background:#102c23;
+  border-radius:13px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+#camera{width:100%;height:100%;object-fit:cover}
+.camera-placeholder{color:#b7d7c6;text-align:center;padding:20px}
+.camera-placeholder div{font-size:48px;margin-bottom:10px}
+.controls{display:flex;gap:10px;margin-top:17px}
+button{
+  border:0;padding:13px 17px;border-radius:10px;
+  font-weight:bold;cursor:pointer;font-size:14px;
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+.start{background:var(--green);color:white;flex:1}
+.stop{background:#fee2e2;color:#b91c1c}
+.result{
+  background:#f0fdf4;border:1px solid #ccebd6;
+  border-radius:14px;padding:20px;margin-bottom:17px;
+}
+.result-label{
+  font-size:11px;font-weight:bold;color:var(--muted);
+  letter-spacing:1px;
+}
+#prediction{font-size:27px;color:var(--dark);margin:10px 0;font-weight:bold}
+.confidence{color:var(--muted);font-size:13px}
+.progress{
+  height:9px;border-radius:20px;background:#dcebe2;
+  margin-top:13px;overflow:hidden;
+}
+#progress{height:100%;width:0%;background:#10b981;transition:width .2s}
+.connection{
+  display:flex;justify-content:space-between;gap:10px;
+  align-items:center;padding:14px 0;
+  border-bottom:1px solid var(--border);font-size:13px;
+}
+.dot{
+  display:inline-block;width:9px;height:9px;
+  border-radius:50%;background:#f59e0b;margin-right:6px;
+}
+input{
+  width:100%;padding:12px;border:1px solid var(--border);
+  border-radius:9px;margin:9px 0 12px;font-size:14px;
+}
+.small{color:var(--muted);font-size:12px;line-height:1.6}
+#message{
+  margin-top:12px;padding:12px;background:#f0fdf4;
+  border-radius:9px;font-size:12px;color:var(--dark);
+  overflow-wrap:anywhere;
+}
+.classes{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:10px;margin-top:22px;
+}
+.class-item{
+  background:white;padding:15px 8px;text-align:center;
+  border-radius:12px;border:1px solid var(--border);font-size:12px;
+}
+.class-item span{display:block;font-size:24px;margin-bottom:8px}
+footer{text-align:center;padding:25px;color:var(--muted);font-size:12px}
+@media(max-width:760px){
+  .grid{grid-template-columns:1fr}
+  .classes{grid-template-columns:repeat(2,1fr)}
+  .welcome h2{font-size:23px}
+  header{padding:20px}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">♻️</div>
+    <div>
+      <h1>SMART WASTE AI</h1>
+      <p>INTELLIGENT WASTE DETECTION SYSTEM</p>
+    </div>
+  </div>
+  <div class="status">● AI WASTE MONITORING</div>
+</header>
+
+<main>
+<section class="welcome">
+  <h2>Welcome to Smart Waste Robot</h2>
+  <p>Detect, classify and monitor waste automatically using artificial intelligence.</p>
+</section>
+
+<section class="grid">
+<div class="card">
+  <h3>📷 Live Camera Detection</h3>
+  <div class="camera-box">
+    <video id="camera" autoplay playsinline muted hidden></video>
+    <div class="camera-placeholder" id="placeholder">
+      <div>📸</div>
+      Camera preview will appear here
+    </div>
+  </div>
+  <div class="controls">
+    <button class="start" id="startBtn" onclick="startCamera()">▶ Start Camera</button>
+    <button class="stop" id="stopBtn" onclick="stopCamera()" disabled>■ Stop</button>
+  </div>
+  <p class="small" id="cameraStatus">Camera is currently stopped.</p>
+</div>
+
+<div class="card">
+  <h3>🧠 AI Detection Results</h3>
+  <div class="result">
+    <div class="result-label">CURRENT PREDICTION</div>
+    <div id="prediction">Waiting...</div>
+    <div class="confidence" id="confidence">Confidence: --</div>
+    <div class="progress"><div id="progress"></div></div>
+  </div>
+
+  <h3>ESP32 Connection</h3>
+  <div class="connection">
+    <span>ESP32 status</span>
+    <span id="espStatus"><i class="dot"></i>Not tested</span>
+  </div>
+
+  <label class="small" for="espIP">ESP32 IP Address</label>
+  <input id="espIP" value="10.248.254.228" placeholder="ESP32 IP address">
+
+  <button class="start" style="width:100%" onclick="testESP()">Test ESP32 Connection</button>
+  <div id="message">Ready to start the system.</div>
+</div>
+</section>
+
+<section class="classes">
+  <div class="class-item"><span>🍾</span>Bottle</div>
+  <div class="class-item"><span>🛍️</span>Nylon</div>
+  <div class="class-item"><span>🗑️</span>Other</div>
+  <div class="class-item"><span>🌱</span>No Waste</div>
+</section>
+</main>
+
+<footer>SMART WASTE AI PROJECT • Powered by Teachable Machine and ESP32</footer>
+
+<script>
+const MODEL_URL =
+"https://teachablemachine.withgoogle.com/models/RVqkcxZg0/";
+
+let model = null;
+let cameraStream = null;
+let running = false;
+let lastSent = "";
+let lastSentAt = 0;
+
+const video = document.getElementById("camera");
+const message = document.getElementById("message");
+
+function showMessage(text) {
+  message.textContent = text;
+}
+
+async function loadModel() {
+  if (model) return;
+
+  showMessage("Loading your AI model...");
+
+  if (typeof tmImage === "undefined") {
+    throw new Error("Teachable Machine library failed to load.");
+  }
+
+  model = await tmImage.load(
+    MODEL_URL + "model.json",
+    MODEL_URL + "metadata.json"
+  );
+
+  showMessage("AI model loaded successfully.");
+}
+
+async function startCamera() {
+  const startBtn = document.getElementById("startBtn");
+
+  try {
+    startBtn.disabled = true;
+
+    document.getElementById("cameraStatus").textContent =
+      "Checking camera access...";
+
+    if (!window.isSecureContext) {
+      throw new Error(
+        "INSECURE WEBSITE: Camera requires HTTPS or localhost. " +
+        "Your phone is opening an HTTP network address."
+      );
+    }
+
+    if (!navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia) {
+      throw new Error(
+        "Camera API unavailable. Open this website using HTTPS."
+      );
+    }
+
+    await loadModel();
+
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+
+    video.srcObject = cameraStream;
+    await video.play();
+
+    video.hidden = false;
+    document.getElementById("placeholder").hidden = true;
+    document.getElementById("stopBtn").disabled = false;
+
+    running = true;
+
+    document.getElementById("cameraStatus").textContent =
+      "Camera active. Detecting waste...";
+
+    showMessage("Camera and AI are running.");
+
+    predictLoop();
+
+  } catch (error) {
+    startBtn.disabled = false;
+
+    document.getElementById("cameraStatus").textContent =
+      "Could not start camera.";
+
+    showMessage(
+      "Camera error: " + error.name + " - " + error.message
+    );
+
+    console.error("Camera error:", error);
+
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+  }
+}
+
+async function predictLoop() {
+  if (!running) return;
+
+  try {
+    const predictions = await model.predict(video);
+
+    predictions.sort((a,b) => b.probability-a.probability);
+
+    const best = predictions[0];
+    const label = best.className;
+    const confidence = best.probability;
+
+    document.getElementById("prediction").textContent = label;
+    document.getElementById("confidence").textContent =
+      "Confidence: " + (confidence*100).toFixed(1) + "%";
+
+    document.getElementById("progress").style.width =
+      (confidence*100) + "%";
+
+    if (confidence >= 0.75) {
+      const normalized = label.toLowerCase();
+      let type = "none";
+
+      if (normalized.includes("bottle")) type = "bottle";
+      else if (normalized.includes("nylon")) type = "nylon";
+      else if (normalized.includes("other") &&
+               !normalized.includes("no")) type = "other";
+
+      if (type !== lastSent ||
+          Date.now()-lastSentAt > 3000) {
+        sendToESP(type);
+      }
+    }
+
+  } catch (error) {
+    showMessage("Prediction error: " + error.name + " - " + error.message);
+  }
+
+  if (running) requestAnimationFrame(predictLoop);
+}
+
+async function sendToESP(type) {
+  const ip = document.getElementById("espIP").value.trim();
+
+  if (!ip) return;
+
+  const url = `http://${ip}/detect?type=${type}`;
+
+  try {
+    await fetch(url, {
+      method:"GET",
+      mode:"no-cors"
+    });
+
+    lastSent = type;
+    lastSentAt = Date.now();
+
+    showMessage("Detection command attempted: " + type);
+
+  } catch(error) {
+    showMessage("ESP32 request error: " + error.message);
+  }
+}
+
+function testESP() {
+  sendToESP("none");
+}
+
+function stopCamera() {
+  running = false;
+
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+
+  video.srcObject = null;
+  video.hidden = true;
+
+  document.getElementById("placeholder").hidden = false;
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
+
+  document.getElementById("cameraStatus").textContent =
+    "Camera stopped.";
+
+  document.getElementById("prediction").textContent = "Waiting...";
+  document.getElementById("confidence").textContent = "Confidence: --";
+  document.getElementById("progress").style.width = "0%";
+
+  showMessage("Camera stopped.");
+}
+</script>
+</body>
+</html>
